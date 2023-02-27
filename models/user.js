@@ -26,6 +26,11 @@ const userSchema = new Schema({
     type: Boolean,
     default: false,
   },
+  pushoverEmail: {
+    type: String,
+    minlength: 5,
+    maxlength: 255,
+  },
 });
 
 userSchema.methods.generateAuthToken = function () {
@@ -65,18 +70,36 @@ userSchema.set("toJSON", {
 
 const User = mongoose.model("User", userSchema);
 
-function validateUser(user) {
+function validateUser(user, requestType) {
   const schema = Joi.object({
-    name: Joi.string().min(3).max(50).required(),
-    email: Joi.string().min(5).max(255).required().email(),
+    name: Joi.string()
+      .min(3)
+      .max(50)
+      .alter({
+        post: (schema) => schema.required(),
+        put: (schema) => schema.optional(),
+      }),
+    email: Joi.string()
+      .min(5)
+      .max(255)
+      .email()
+      .alter({
+        post: (schema) => schema.required(),
+        put: (schema) => schema.optional(),
+      }),
+    pushoverEmail: Joi.string().min(5).max(255).email().optional(),
     // we validate the password sent from user
-    password: Joi.string().min(5).max(255).required(),
+    password: Joi.string()
+      .min(5)
+      .max(255)
+      .alter({
+        post: (schema) => schema.required(),
+        put: (schema) => schema.optional(),
+      }),
   });
 
-  return schema.validate(user);
+  return schema.tailor(requestType).validate(user);
 }
 
 exports.User = User;
 exports.validate = validateUser;
-
-// will do similar to this https://github.com/mosh-hamedani/vidly-api-node/blob/73aaf61f3aeb9b7462c1058cf86b4f36ea69d83c/models/user.js

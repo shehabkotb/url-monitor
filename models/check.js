@@ -22,14 +22,9 @@ const checkSchema = new Schema({
     required: true,
   },
   protocol: { type: String, enum: ["HTTP", "HTTPS", "TCP"], required: true },
-  port: { type: Number, min: 0, max: 65536, default: 80 },
   webhook: { type: String, minlength: 5, maxlength: 1024 },
   timeout: { type: Number, min: 0, max: 60, default: 5 }, // default 5 seconds
-  interval: { type: Number, min: 0, max: 2592000, default: 600 }, // default 10 minutes
-  authentication: {
-    username: { type: String, minlength: 3, maxlength: 50 },
-    password: { type: String, minlength: 3, maxlength: 255 },
-  },
+  interval: { type: Number, min: 0, max: 3600, default: 600 }, // default 10 minutes
   tags: [
     {
       type: String,
@@ -43,6 +38,38 @@ const checkSchema = new Schema({
   report: { type: reportSchema, default: () => ({}) },
 });
 
+checkSchema.methods.updateStatus = async function (
+  currentStatus,
+  resposneTime,
+  callbackFunction
+) {
+  let statusChanged = false;
+  if (this.report.status !== currentStatus) statusChanged = true;
+
+  this.report.status = currentStatus;
+  if (currentStatus === "up") {
+    this.report.uptime += this.interval;
+    this.report.history.push({
+      responseTime: resposneTime,
+      status: "up",
+    });
+  } else if (currentStatus === "down") {
+    this.report.downtime += this.interval;
+    this.report.outages += 1;
+    this.report.history.push({
+      responseTime: 0,
+      status: "down",
+    });
+  }
+
+  let savedCheck = await this.save();
+  savedCheck = await savedCheck.populate("createdBy");
+
+  if (statusChanged) {
+    await callbackFunction(savedCheck);
+  }
+};
+
 checkSchema.set("toJSON", {
   transform: (document, returnedObject) => {
     returnedObject.id = returnedObject._id.toString();
@@ -53,15 +80,33 @@ checkSchema.set("toJSON", {
 
 const Check = mongoose.model("Check", checkSchema);
 
-function validateCheck(check) {
+function validateCheck(check, requestType) {
   const schema = Joi.object({
-    name: Joi.string().min(3).max(50).required(),
-    url: Joi.string().min(5).max(1024).required().uri(),
-    protocol: Joi.string().valid("HTTP", "HTTPS", "TCP").required(),
+    name: Joi.string()
+      .min(3)
+      .max(50)
+      .alter({
+        post: (schema) => schema.required(),
+        put: (schema) => schema.optional(),
+      }),
+    url: Joi.string()
+      .min(5)
+      .max(1024)
+      .uri()
+      .alter({
+        post: (schema) => schema.required(),
+        put: (schema) => schema.optional(),
+      }),
+    protocol: Joi.string()
+      .valid("HTTP", "HTTPS", "TCP")
+      .alter({
+        post: (schema) => schema.required(),
+        put: (schema) => schema.optional(),
+      }),
     port: Joi.number().min(0).max(65536).optional(),
     webhook: Joi.string().min(5).max(1024).optional().uri(),
     timeout: Joi.number().min(0).max(60).optional(),
-    interval: Joi.number().min(0).max(2592000).optional(),
+    interval: Joi.number().min(0).max(3600).optional(),
     tags: Joi.array().unique().items(Joi.string().min(1).max(50)),
     ignoreSSL: Joi.boolean().optional(),
     authentication: Joi.object({
@@ -70,7 +115,7 @@ function validateCheck(check) {
     }).optional(),
   });
 
-  return schema.validate(check);
+  return schema.tailor(requestType).validate(check);
 }
 
 exports.Check = Check;

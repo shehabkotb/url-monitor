@@ -1,14 +1,17 @@
 version: '3.8'            # Version 3.8 is quite new and should work
 
 services:
-  app:                    # The name of the service, can be anything
-    image: proto1         # Declares which image to use
-    build: .              # Declares where to build if image is not found
-    ports:                # Declares the ports to publish
+  app:                    
+    image: url-monitor-server         
+    build: .              
+    restart: always
+    network_mode: "host"
+    ports:                
       - 8080:8080
     depends_on:
-      - mongo
-  mongo:
+      - mongodb
+  
+  mongodb:
     image: mongo
     ports:
       - 27017:27017
@@ -17,4 +20,17 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: example
       MONGO_INITDB_DATABASE: url_monitor_database
     volumes:
+      - ./mongo/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
       - ./mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongodb:27017/
+    depends_on:
+      - mongodb

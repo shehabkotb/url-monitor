@@ -7,9 +7,6 @@ const MongoServerError = "MongoServerError";
 
 // handles promise rejections inside controllers
 const errorHandler = (error, req, res, next) => {
-  console.log(
-    "this my error handler any thing printed here should just be handled here"
-  );
   console.log(error);
 
   if (error.name === CastError) {

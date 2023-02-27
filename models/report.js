@@ -9,34 +9,42 @@ const reportSchema = new Schema({
   uptime: { type: Number, default: 0 },
   history: [
     {
-      responseTime: { type: Number, required: true },
-      status: { type: String, enum: ["up", "down"], default: "up" },
+      type: new Schema(
+        {
+          responseTime: { type: Number, required: true },
+          status: { type: String, enum: ["up", "down"], default: "up" },
+        },
+        { timestamps: { createdAt: "timestamp", updatedAt: false } }
+      ),
     },
-    { timeStamps: { createdAt: "timestamp", updatedAt: false } },
   ],
 });
 
 const virtualAvailability = reportSchema.virtual("availability");
 virtualAvailability.get(function (value, virtual, doc) {
-  if (!this.upTime) return "Can't Calculate Yet";
+  if (!this.uptime) return "Can't Calculate Yet";
 
-  const result = this.upTime / (this.upTime + this.downTime);
+  const result = this.uptime / (this.uptime + this.downtime);
 
-  return `${result}%`;
+  return `${Math.round(result * 100)}%`;
 });
 
 const avgResponseTime = reportSchema.virtual("avgResponseTime");
 avgResponseTime.get(function (value, virtual, doc) {
   let responseMiliSecondSum = 0;
-  let logsLength = this.history.length;
+  let logsLength = 0;
 
+  // we calculate avg resoponse on up responses only
   const result = this.history.forEach((log) => {
-    responseTimeSum += log.responseTime;
+    if (log.status === "up") {
+      responseMiliSecondSum += log.responseTime;
+      logsLength += 1;
+    }
   });
 
   if (!responseMiliSecondSum || !logsLength) return 0;
 
-  return responseTimeSum / logsLength;
+  return responseMiliSecondSum / logsLength;
 });
 
 reportSchema.set("toJSON", {
