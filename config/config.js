@@ -3,7 +3,7 @@ require("dotenv").config();
 const PORT = process.env.PORT || 8080;
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb://database_owner:password123@127.0.0.1:27017/url_monitor_database";
+  "mongodb://database_owner:password123@mongodb:27017/url_monitor_database";
 const JWTSECRET =
   process.env.JWTSECRET ||
   "TASwLncfgL2b2PbLxv72CQz9M8CiRSiOfepHk0LlbSsUn2olrMrk4B9juYEwTpi";
