@@ -1,5 +1,5 @@
 # url-monitor
-RESTful API server that allows authenticated users to monitor URLs, users can recieve notifications when the status of the url they registered change status, there are three ways to recieve the notifications, via Email, webhook and pushover mobile application.
+RESTful API server that allows authenticated users to monitor URLs, users can recieve notifications when the status of the url they registered changes, there are three ways to recieve the notifications, via Email, webhook and pushover mobile application.
 
 
 
